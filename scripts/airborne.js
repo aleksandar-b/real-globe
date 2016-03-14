@@ -180,11 +180,88 @@ function setupSystem(){
 	system.name = 'system'
 	scene.add( system )
 }
+
+//****************************
+
+var markerProto = {
+  latLongToVector3: function latLongToVector3(latitude, longitude, radius, height) {
+
+    var phi = (latitude)*Math.PI/180;
+    var theta = (longitude-180)*Math.PI/180;
+
+    var x = -(radius+height) * Math.cos(phi) * Math.cos(theta);
+    var y = (radius+height) * Math.sin(phi);
+    var z = (radius+height) * Math.cos(phi) * Math.sin(theta);
+
+    return new THREE.Vector3(x,y,z);
+  },
+  marker: function marker(size, color, vector3Position) {
+    var markerGeometry = new THREE.SphereGeometry(size);
+    var markerMaterial = new THREE.MeshLambertMaterial({
+      
+      color: color    });
+    var markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
+    markerMesh.position.copy(vector3Position);
+    
+    return markerMesh;
+  }
+}
+
+// Place Marker
+var placeMarker = function(object, options) {
+  var position = markerProto.latLongToVector3(options.latitude, options.longitude, options.radius, options.height);
+  var marker = markerProto.marker(options.size, options.color, position);
+  object.add(marker);
+}
+
+// Place Marker At Address
+var placeMarkerAtAddress = function(address, color) {
+  var encodedLocation = address.replace(/\s/g, '+');
+  var httpRequest = new XMLHttpRequest();
+  
+  httpRequest.open('GET', 'https://maps.googleapis.com/maps/api/geocode/json?address='+encodedLocation);
+  httpRequest.send(null);
+  httpRequest.onreadystatechange = function() {
+    if (httpRequest.readyState == 4 && httpRequest.status == 200) {
+      var result = JSON.parse(httpRequest.responseText);
+      
+      if (result.results.length > 0) {
+        var latitude = result.results[0].geometry.location.lat;
+        var longitude = result.results[0].geometry.location.lng;
+
+        placeMarker(system.getObjectByName('earth'),{
+          latitude: latitude,
+          longitude: longitude,
+           radius: 1,
+          height: 0,
+          size: 0.01,
+          color: color,
+        });
+      }
+  }}}
+    
+  /*
+  var material4 = new THREE.LineBasicMaterial({
+        color: 0x0000ff
+    });
+
+
+
+var geometry4 = new THREE.Geometry();
+    geometry.vertices.push(new THREE.Vector3(-100, 0, 0));
+    geometry.vertices.push(new THREE.Vector3(0, 100, 0));
+    geometry.vertices.push(new THREE.Vector3(100, 0, 0));
+
+  var line = new THREE.Line(geometry4, material4);
+  scene.add(line);
+*/
+
+//******************************
 function setupSun(){
 
 	//scene.add( new THREE.AmbientLight( 0x111111 ))
 	var ambi = new THREE.AmbientLight(0x181818);
-        scene.add(ambi);
+      scene.add(ambi);
 
 
 	sun = new THREE.DirectionalLight( 0xFFFFFF, 2 )
@@ -220,7 +297,8 @@ function setupEarth( radius ){
 	earth.castShadow = true
 	earth.receiveShadow = false
 	system.add( earth )
-}
+
+	}
 
 
 
@@ -672,6 +750,26 @@ function updateFlights(){
 function setupGUI(){
 
 	var gui = new dat.GUI()
+var guiMarkers = gui.addFolder('Add City');
+
+
+
+var markersControls = new function() {
+  this.address = '';
+  this.color = 0xff0000;
+  this.placeMarker= function() {
+  	console.log('attempt');
+
+    placeMarkerAtAddress(this.address, this.color);
+  }
+
+  }
+
+
+
+guiMarkers.add(markersControls, 'address');
+guiMarkers.addColor(markersControls, 'color');
+guiMarkers.add(markersControls, 'placeMarker');
 
 	gui.add( window, 'sunRotationPerFrame', 0, 0.02 ).name( 'Sun speed' ).onFinishChange( function( value ){
 	
